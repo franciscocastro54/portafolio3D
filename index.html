@@ -1,18 +1,21 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Presentación VR/AR en Three.js</title>
   <style>
     /* Reset and basic styles */
-    html, body {
+    html,
+    body {
       margin: 0;
       padding: 0;
       height: 100%;
       overflow: hidden;
       font-family: sans-serif;
     }
+
     /* Overlay displayed before pointer lock is enabled */
     #blocker {
       position: absolute;
@@ -27,9 +30,11 @@
       color: #fff;
       z-index: 10;
     }
+
     #blocker.hidden {
       display: none;
     }
+
     #instructions {
       text-align: center;
       max-width: 600px;
@@ -37,6 +42,7 @@
       font-size: 1.2rem;
       cursor: pointer;
     }
+
     /* Simple crosshair at the center of the screen */
     #crosshair {
       position: absolute;
@@ -45,7 +51,7 @@
       transform: translate(-50%, -50%);
       width: 10px;
       height: 10px;
-      border: 2px solid rgba(255,255,255,0.8);
+      border: 2px solid rgba(255, 255, 255, 0.8);
       border-radius: 50%;
       pointer-events: none;
       z-index: 5;
@@ -61,57 +67,64 @@
       pointer-events: none;
       z-index: 10;
     }
+
     .joystick {
       position: absolute;
       width: 140px;
       height: 140px;
-      border: 2px solid rgba(255,255,255,0.6);
+      border: 2px solid rgba(255, 255, 255, 0.6);
       border-radius: 50%;
       pointer-events: all;
       touch-action: none;
     }
+
     #left-joystick {
       left: 30px;
     }
+
     #right-joystick {
       right: 30px;
     }
+
     .knob {
       position: absolute;
       top: 50%;
       left: 50%;
       width: 50px;
       height: 50px;
-      background: rgba(255,255,255,0.7);
+      background: rgba(255, 255, 255, 0.7);
       border-radius: 50%;
       transform: translate(-50%, -50%);
     }
+
     /* Hidden helper class */
     .hidden {
       display: none;
     }
   </style>
 </head>
+
 <body>
   <div id="blocker">
     <div id="instructions">
       <h1>Haz click para comenzar</h1>
       <p>Usa <strong>W A S D</strong> para moverte, el ratón para mirar.</p>
-      <p>A medida que explores la escena, encontrarás paneles con información sobre mi experiencia, proyectos y contacto.</p>
+      <p>A medida que explores la escena, encontrarás paneles con información sobre mi experiencia, proyectos y
+        contacto.</p>
       <p>Haz click en esta pantalla para activar los controles.</p>
     </div>
   </div>
   <div id="crosshair"></div>
 
-    <!-- On‑screen joysticks for mobile devices -->
-    <div id="joystick-container" class="hidden">
-      <div id="left-joystick" class="joystick">
-        <div id="left-knob" class="knob"></div>
-      </div>
-      <div id="right-joystick" class="joystick">
-        <div id="right-knob" class="knob"></div>
-      </div>
+  <!-- On‑screen joysticks for mobile devices -->
+  <div id="joystick-container" class="hidden">
+    <div id="left-joystick" class="joystick">
+      <div id="left-knob" class="knob"></div>
     </div>
+    <div id="right-joystick" class="joystick">
+      <div id="right-knob" class="knob"></div>
+    </div>
+  </div>
   <!-- Import Three.js (module) and PointerLockControls -->
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
@@ -290,51 +303,99 @@
 
       // Add informational panels to the scene
       createInfoPanels([
-  {
-    title: 'Realidad extendida + IA',
-    text: 'Proyecto educativo que combina visión por computadora en Meta Quest 3 con una API de IA para analizar textos físicos en tiempo real, promoviendo el aprendizaje activo mediante tecnologías inmersivas.',
-    position: { x: 3.35, y: 6.59, z: -19.95 },
-    rotation: { x: 0, y: 0, z: 0 }
-  },
-  {
-    title: 'Simuladores educativos',
-    text: 'Desarrollo e implementación de experiencias educativas inmersivas con tecnologías VR/AR para procesos de capacitación en la Universidad del Desarrollo y el Ejército de Chile, potenciando el aprendizaje práctico a través de simulaciones interactivas.',
-    position: { x: -3.35, y: 6.59, z: -19.95 },
-    rotation: { x: 0, y: 0, z: 0 }
-  },
-  {
-    title: 'Terrenos 3D',
-    text: 'Experiencia en el levantamiento y modelado de terrenos georreferenciados mediante herramientas como Blender, con el objetivo de visualizarlos e integrarlos en entornos virtuales inmersivos.',
-    position: { x: -19.95, y: 6.6, z: -3.35 },
-    rotation: { x: 0, y: Math.PI / 2, z: 0 }
-  },
-  {
-    title: 'Sobre mí',
-    text: 'Desarrollador y docente con amplia experiencia en la creación de soluciones tecnológicas inmersivas, especializado en el desarrollo de experiencias de realidad virtual y aumentada en Unity para dispositivos como Meta Quest 3 y HoloLens.',
-    position: { x: -19.95, y: 6.6, z: 3.35 },
-    rotation: { x: 0, y: Math.PI / 2, z: 0 }
-  }
-]);
-createVideoPanels([
-  {
-    title: 'Demo VR',
-    videoSrc: 'videos/terrenos3D.mp4',
-    position: { x: -19.95, y: 6.6, z: -12.77 },
-    rotation: { x: 0, y: Math.PI / 2, z: 0 }
-  },
-  {
-    title: 'Proyecto Educativo',
-    videoSrc: 'videos/vrIA.mp4',
-    position: { x: 12.7, y: 6.6, z: -19.8 },
-    rotation: { x: 0, y: 0, z: 0 }
-  },
-  {
-    title: 'Proyecto Educativo',
-    videoSrc: 'videos/simuladorVR.mp4',
-    position: { x: -12.9, y: 6.6, z: -19.8 },
-    rotation: { x: 0, y: 0, z: 0 }
-  }
-]);
+        {
+          title: 'Realidad extendida + IA',
+          text: 'Proyecto educativo que combina visión por computadora en Meta Quest 3 con una API de IA para analizar textos físicos en tiempo real, promoviendo el aprendizaje activo mediante tecnologías inmersivas.',
+          position: { x: 3.35, y: 6.59, z: -19.95 },
+          rotation: { x: 0, y: 0, z: 0 }
+        },
+        {
+          title: 'Simuladores educativos',
+          text: 'Desarrollo e implementación de experiencias educativas inmersivas con tecnologías VR/AR para procesos de capacitación en la Universidad del Desarrollo y el Ejército de Chile, potenciando el aprendizaje práctico a través de simulaciones interactivas.',
+          position: { x: -3.35, y: 6.59, z: -19.99 },
+          rotation: { x: 0, y: 0, z: 0 }
+        },
+        {
+          title: 'Trabajemos juntos',
+          text: 'Mail: francisco.castro.init@gmail.com Celular: +569 35232158              Unity | javaScript | C# | react | web | CSS | HTML',
+          position: { x: 3.35, y: 6.59, z: 19.99 },
+          rotation: { x: 0, y: Math.PI , z: 0 }
+        },
+        {
+          title: 'Terrenos 3D',
+          text: 'Experiencia en el levantamiento y modelado de terrenos georreferenciados mediante herramientas como Blender, con el objetivo de visualizarlos e integrarlos en entornos virtuales inmersivos.',
+          position: { x: -19.95, y: 6.6, z: -3.35 },
+          rotation: { x: 0, y: Math.PI / 2, z: 0 }
+        },
+        {
+          title: 'Sobre mí',
+          text: 'Desarrollador y docente con amplia experiencia en la creación de soluciones tecnológicas inmersivas, especializado en el desarrollo de experiencias de realidad virtual y aumentada en Unity para dispositivos como Meta Quest 3 y HoloLens.',
+          position: { x: -19.95, y: 6.6, z: 3.35 },
+          rotation: { x: 0, y: Math.PI / 2, z: 0 }
+        }
+      ]);
+      createVideoPanels([
+        {
+          title: 'Demo VR',
+          videoSrc: 'videos/terrenos3D.mp4',
+          position: { x: -19.95, y: 6.6, z: -12.77 },
+          rotation: { x: 0, y: Math.PI / 2, z: 0 }
+        },
+        {
+          title: 'Proyecto Educativo',
+          videoSrc: 'videos/vrIA.mp4',
+          position: { x: 12.7, y: 6.6, z: -19.8 },
+          rotation: { x: 0, y: 0, z: 0 }
+        },
+        {
+          title: 'Proyecto Educativo',
+          videoSrc: 'videos/simuladorVR.mp4',
+          position: { x: -12.9, y: 6.6, z: -19.8 },
+          rotation: { x: 0, y: 0, z: 0 }
+        }
+      ]);
+
+      createImagePanels([
+        {
+          imageSrc: 'imagenes/pycon.jpg',
+          position: { x: 19.9, y: 6.6, z: -16.6 },
+          rotation: { x: 0, y: -Math.PI / 2, z: 0 },
+          size: { width: 3.6, height: 4.75 }
+        },
+        {
+          imageSrc: 'imagenes/acapomilStand.jpg',
+          position: { x: 19.9, y: 6.6, z: 3.35 },
+          rotation: { x: 0, y: Math.PI / 2, z: 0 },
+          size: { width: 3.6, height: 4.75 }
+        },
+        {
+          imageSrc: 'imagenes/acapomilVR.jpg',
+          position: { x: -3.4, y: 6.59, z: 19.99 },
+          rotation: { x: 0, y: Math.PI, z: 0 },
+          size: { width: 3.6, height: 4.75 }
+        },
+        {
+          imageSrc: 'imagenes/jsConf.jpg',
+          position: { x: 19.9, y: 6.6, z: -10 },
+          rotation: { x: 0, y: -Math.PI / 2, z: 0 },
+          size: { width: 5, height: 4 }
+        },
+        {
+          imageSrc: 'imagenes/jsChile.jpg',
+          position: { x: 19.9, y: 6.6, z: -3.4 },
+          rotation: { x: 0, y: -Math.PI / 2, z: 0 },
+          size: { width: 3.6, height: 4.6 }
+        },
+        {
+          imageSrc: 'imagenes/infodefensa.jpg',
+          position: { x: -19.95, y: 6.6, z: 10 },
+          rotation: { x: 0, y: Math.PI / 2, z: 0 },
+          size: { width: 3.6, height: 4.6 }
+        }
+      ]);
+
+
+
       // Keyboard events
       // Only listen for keyboard events on desktop
       if (!isMobile) {
@@ -492,11 +553,11 @@ createVideoPanels([
       const panelGeometry = new THREE.PlaneGeometry(11.7, 5);
 
       videoPanels.forEach(({ title, videoSrc, position, rotation }) => {
-        
 
-       
 
-        
+
+
+
         // Crear elemento de video HTML
         const video = document.createElement('video');
         video.src = videoSrc;
@@ -522,6 +583,24 @@ createVideoPanels([
         mesh.rotation.set(rotation.x, rotation.y, rotation.z);
 
         scene.add(mesh);
+      });
+    }
+    function createImagePanels(imagePanels) {
+      imagePanels.forEach(({ imageSrc, position, rotation, size }) => {
+        const width = size?.width || 6;   // Valor por defecto: 6
+        const height = size?.height || 4; // Valor por defecto: 4
+        const panelGeometry = new THREE.PlaneGeometry(width, height);
+
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load(imageSrc, (texture) => {
+          const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+          const mesh = new THREE.Mesh(panelGeometry, material);
+
+          mesh.position.set(position.x, position.y, position.z);
+          mesh.rotation.set(rotation.x, rotation.y, rotation.z);
+
+          scene.add(mesh);
+        });
       });
     }
 
@@ -574,6 +653,13 @@ createVideoPanels([
       requestAnimationFrame(animate);
       const time = performance.now();
       const delta = (time - prevTime) / 1000;
+
+      // Definir límites del área permitida
+      const minX = -19.5;
+      const maxX = 19.5;
+      const minZ = -19.5;
+      const maxZ = 19.5;
+
       if (!isMobile && controls && controls.isLocked === true) {
         // Desktop pointer lock movement
         direction.z = Number(moveForward) - Number(moveBackward);
@@ -582,32 +668,42 @@ createVideoPanels([
         const speed = 60.0;
         if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
         if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
+
         controls.moveRight(-velocity.x * delta);
         controls.moveForward(-velocity.z * delta);
-        // Decay velocity so the player stops when key released
+
+        // Clamp position para desktop
+        const pos = controls.getObject().position;
+        pos.x = Math.max(minX, Math.min(maxX, pos.x));
+        pos.z = Math.max(minZ, Math.min(maxZ, pos.z));
+
+        // Deceleración
         velocity.x -= velocity.x * 10.0 * delta;
         velocity.z -= velocity.z * 10.0 * delta;
+
       } else if (isMobile) {
-        // Mobile movement and orientation
-        // Update camera orientation based on yaw/pitch deltas
-        const rotSpeed = 0.3; // radians per second
+        // Mobile movement y orientación
+        const rotSpeed = 0.3;
         yaw -= mobileYawDelta * rotSpeed * delta;
         pitch -= mobilePitchDelta * rotSpeed * delta;
-        // Clamp pitch to avoid flipping
         const maxPitch = Math.PI / 2 - 0.1;
         pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
         camera.rotation.order = 'YXZ';
         camera.rotation.y = yaw;
         camera.rotation.x = pitch;
-        // Compute forward and right vectors from yaw
+
         const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
         const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
         const speed = 5.0;
         camera.position.addScaledVector(forward, mobileMoveZ * speed * delta);
         camera.position.addScaledVector(right, mobileMoveX * speed * delta);
-        // Keep camera at constant height
-        camera.position.y = 5;
+
+        // Clamp position para mobile
+        camera.position.x = Math.max(minX, Math.min(maxX, camera.position.x));
+        camera.position.z = Math.max(minZ, Math.min(maxZ, camera.position.z));
+        camera.position.y = 5; // mantener altura
       }
+
       prevTime = time;
       renderer.render(scene, camera);
     }
@@ -616,4 +712,5 @@ createVideoPanels([
   </script>
   <!-- Notes for citations: this implementation follows the pattern described in the Three.js pointer lock example.  The article explains that PointerLockControls implements the browser Pointer Lock API, allowing first‑person control similar to 3D games【964747889971271†L132-L136】.  The example demonstrates how clicking an instruction overlay locks the pointer and hides the instructions【964747889971271†L232-L241】, and how keyboard events update forward/backward and left/right movement states【964747889971271†L248-L289】.  -->
 </body>
+
 </html>
