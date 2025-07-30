@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presentación VR/AR en Three.js</title>
+  <style>
+    /* Reset and basic styles */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+    /* Overlay displayed before pointer lock is enabled */
+    #blocker {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      z-index: 10;
+    }
+    #blocker.hidden {
+      display: none;
+    }
+    #instructions {
+      text-align: center;
+      max-width: 600px;
+      line-height: 1.5;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    /* Simple crosshair at the center of the screen */
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 10px;
+      height: 10px;
+      border: 2px solid rgba(255,255,255,0.8);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* Joystick styles for mobile */
+    #joystick-container {
+      position: absolute;
+      bottom: 40px;
+      left: 0;
+      right: 0;
+      height: 160px;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .joystick {
+      position: absolute;
+      width: 140px;
+      height: 140px;
+      border: 2px solid rgba(255,255,255,0.6);
+      border-radius: 50%;
+      pointer-events: all;
+      touch-action: none;
+    }
+    #left-joystick {
+      left: 30px;
+    }
+    #right-joystick {
+      right: 30px;
+    }
+    .knob {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 50px;
+      height: 50px;
+      background: rgba(255,255,255,0.7);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+    /* Hidden helper class */
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="blocker">
+    <div id="instructions">
+      <h1>Haz click para comenzar</h1>
+      <p>Usa <strong>W A S D</strong> para moverte, el ratón para mirar.</p>
+      <p>A medida que explores la escena, encontrarás paneles con información sobre mi experiencia, proyectos y contacto.</p>
+      <p>Haz click en esta pantalla para activar los controles.</p>
+    </div>
+  </div>
+  <div id="crosshair"></div>
+
+    <!-- On‑screen joysticks for mobile devices -->
+    <div id="joystick-container" class="hidden">
+      <div id="left-joystick" class="joystick">
+        <div id="left-knob" class="knob"></div>
+      </div>
+      <div id="right-joystick" class="joystick">
+        <div id="right-knob" class="knob"></div>
+      </div>
+    </div>
+  <!-- Import Three.js (module) and PointerLockControls -->
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    /*
+      Import PointerLockControls with the `?module` query parameter so that the
+      module loader rewrites its internal imports.  Without this parameter,
+      imports like `import { Vector3 } from "three"` inside the module will not
+      resolve, leading to a “Failed to resolve module specifier \"three\"” error.
+    */
+    import { PointerLockControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/PointerLockControls.js?module';
+
+    let camera, scene, renderer, controls;
+    let moveForward = false;
+    let moveBackward = false;
+    let moveLeft = false;
+    let moveRight = false;
+    let prevTime = performance.now();
+    const velocity = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+
+    // Mobile control variables
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    let mobileMoveX = 0, mobileMoveZ = 0;
+    let mobileYawDelta = 0, mobilePitchDelta = 0;
+    let yaw = 0, pitch = 0;
+
+    function init() {
+      // Scene and camera setup
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x202035);
+      camera = new THREE.PerspectiveCamera(25, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.y = 5; // approximate eye height
+
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      // Lights
+      const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+      scene.add(ambient);
+      const directional = new THREE.DirectionalLight(0xffffff, 0.9);
+      directional.position.set(0.5, 1, 0.3);
+      scene.add(directional);
+
+      // Controls
+      const blocker = document.getElementById('blocker');
+      const instructions = document.getElementById('instructions');
+
+      if (!isMobile) {
+        // Desktop: use pointer lock controls for first‑person navigation
+        controls = new PointerLockControls(camera, document.body);
+        instructions.addEventListener('click', function () {
+          controls.lock();
+        });
+        controls.addEventListener('lock', function () {
+          blocker.classList.add('hidden');
+        });
+        controls.addEventListener('unlock', function () {
+          blocker.classList.remove('hidden');
+        });
+      } else {
+        // Mobile: hide blocker and instructions, show joysticks
+        blocker.classList.add('hidden');
+        const joystickContainer = document.getElementById('joystick-container');
+        joystickContainer.classList.remove('hidden');
+        // Hide the crosshair on mobile
+        document.getElementById('crosshair').classList.add('hidden');
+        // Set initial yaw and pitch from camera
+        yaw = camera.rotation.y;
+        pitch = camera.rotation.x;
+        // Setup joystick handlers
+        setupMobileJoysticks();
+      }
+
+      //floor
+
+      // Cargar textura
+      const loader = new THREE.TextureLoader();
+      const texture = loader.load('baldosa.png', function (tex) {
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(20, 20); // Ajusta cuántas veces se repite la textura
+      });
+
+      // Crear el material con la textura
+      const floorMaterial = new THREE.MeshPhongMaterial({ map: texture, side: THREE.DoubleSide });
+
+      // Geometría y malla del piso
+      const floorGeometry = new THREE.PlaneGeometry(40, 40, 1, 1);
+      const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+      floor.rotation.x = -Math.PI / 2;
+      scene.add(floor);
+
+      //ceiling ----------------------------------------------------------
+      // Cargar textura
+      const loaderCeiling = new THREE.TextureLoader();
+      const textureCeiling = loader.load('ceiling.png', function (tex) {
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(5, 5); // Ajusta cuántas veces se repite la textura
+      });
+
+      // Crear el material con la textura
+      const ceilingMaterial = new THREE.MeshPhongMaterial({ map: textureCeiling, side: THREE.DoubleSide });
+
+      // Geometría y malla del piso
+      const ceilingGeometry = new THREE.PlaneGeometry(40, 40, 1, 1);
+      const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+      ceiling.rotation.x = -Math.PI / 2;
+      ceiling.position.y = 9.6;
+
+      scene.add(ceiling);
+
+
+
+
+
+      //wall
+      const loader2 = new THREE.TextureLoader();
+      const texture2 = loader2.load('wall.png', function (tex) {
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(2, 1); // Ajusta cuántas veces se repite la textura
+      });
+
+      // Crear el material con la textura
+      const floorMaterial2 = new THREE.MeshPhongMaterial({ map: texture2, side: THREE.DoubleSide });
+
+      // Geometría y malla del piso
+      const floorGeometry2 = new THREE.PlaneGeometry(40, 10, 1, 1);
+      const floor2 = new THREE.Mesh(floorGeometry2, floorMaterial2);
+
+      //floor2.position.x = 20;
+      floor2.position.z = 20;
+      floor2.position.y = 4.8;
+      scene.add(floor2);
+
+
+
+      // Geometría y malla del piso
+      const floor3 = new THREE.Mesh(floorGeometry2, floorMaterial2);
+
+      //floor2.position.x = 20;
+      floor3.position.z = -20;
+      floor3.position.y = 4.8;
+
+      scene.add(floor3);
+
+
+      // Geometría y malla del piso
+      const floor4 = new THREE.Mesh(floorGeometry2, floorMaterial2);
+
+      floor4.rotation.y = -Math.PI / 2;
+      floor4.position.x = -20;
+      floor4.position.y = 4.8;
+
+
+      scene.add(floor4);
+
+
+      // Geometría y malla del piso
+      const floor5 = new THREE.Mesh(floorGeometry2, floorMaterial2);
+
+      floor5.rotation.y = -Math.PI / 2;
+      floor5.position.x = 20;
+      floor5.position.y = 4.8;
+
+
+      scene.add(floor5);
+
+
+      // Grid helper for orientation
+      //const grid = new THREE.GridHelper(200, 50, 0x444455, 0x222233);
+      //scene.add(grid);
+
+      // Add informational panels to the scene
+      createInfoPanels([
+  {
+    title: 'Realidad extendida + IA',
+    text: 'Proyecto educativo que combina visión por computadora en Meta Quest 3 con una API de IA para analizar textos físicos en tiempo real, promoviendo el aprendizaje activo mediante tecnologías inmersivas.',
+    position: { x: 3.35, y: 6.59, z: -19.95 },
+    rotation: { x: 0, y: 0, z: 0 }
+  },
+  {
+    title: 'Simuladores educativos',
+    text: 'Desarrollo e implementación de experiencias educativas inmersivas con tecnologías VR/AR para procesos de capacitación en la Universidad del Desarrollo y el Ejército de Chile, potenciando el aprendizaje práctico a través de simulaciones interactivas.',
+    position: { x: -3.35, y: 6.59, z: -19.95 },
+    rotation: { x: 0, y: 0, z: 0 }
+  },
+  {
+    title: 'Terrenos 3D',
+    text: 'Experiencia en el levantamiento y modelado de terrenos georreferenciados mediante herramientas como Blender, con el objetivo de visualizarlos e integrarlos en entornos virtuales inmersivos.',
+    position: { x: -19.95, y: 6.6, z: -3.35 },
+    rotation: { x: 0, y: Math.PI / 2, z: 0 }
+  },
+  {
+    title: 'Sobre mí',
+    text: 'Desarrollador y docente con amplia experiencia en la creación de soluciones tecnológicas inmersivas, especializado en el desarrollo de experiencias de realidad virtual y aumentada en Unity para dispositivos como Meta Quest 3 y HoloLens.',
+    position: { x: -19.95, y: 6.6, z: 3.35 },
+    rotation: { x: 0, y: Math.PI / 2, z: 0 }
+  }
+]);
+createVideoPanels([
+  {
+    title: 'Demo VR',
+    videoSrc: 'videos/terrenos3D.mp4',
+    position: { x: -19.95, y: 6.6, z: -12.77 },
+    rotation: { x: 0, y: Math.PI / 2, z: 0 }
+  },
+  {
+    title: 'Proyecto Educativo',
+    videoSrc: 'videos/vrIA.mp4',
+    position: { x: 12.7, y: 6.6, z: -19.8 },
+    rotation: { x: 0, y: 0, z: 0 }
+  },
+  {
+    title: 'Proyecto Educativo',
+    videoSrc: 'videos/simuladorVR.mp4',
+    position: { x: -12.9, y: 6.6, z: -19.8 },
+    rotation: { x: 0, y: 0, z: 0 }
+  }
+]);
+      // Keyboard events
+      // Only listen for keyboard events on desktop
+      if (!isMobile) {
+        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('keyup', onKeyUp);
+      }
+
+      window.addEventListener('resize', onWindowResize);
+
+      animate();
+    }
+
+    /**
+     * Configure on‑screen joysticks for mobile devices.  The left joystick
+     * controls forward/backward/left/right movement and the right joystick controls
+     * camera rotation (yaw and pitch).  Movement values are normalized
+     * between –1 and 1 based on how far the knob is dragged from the centre.
+     */
+    function setupMobileJoysticks() {
+      const leftBase = document.getElementById('left-joystick');
+      const leftKnob = document.getElementById('left-knob');
+      const rightBase = document.getElementById('right-joystick');
+      const rightKnob = document.getElementById('right-knob');
+      let leftActive = false;
+      let rightActive = false;
+      let leftStartX = 0, leftStartY = 0;
+      let rightStartX = 0, rightStartY = 0;
+      const maxDist = 50; // max distance knob can travel
+
+      function handleLeftMove(dx, dy) {
+        // clamp the displacement
+        const clampedX = Math.max(-maxDist, Math.min(maxDist, dx));
+        const clampedY = Math.max(-maxDist, Math.min(maxDist, dy));
+        // update knob position
+        leftKnob.style.transform = `translate(${clampedX}px, ${clampedY}px)`;
+        // normalize to range -1..1 (invert Y so that upward drag moves forward)
+        mobileMoveX = clampedX / maxDist;
+        mobileMoveZ = clampedY / maxDist;
+      }
+
+      function handleRightMove(dx, dy) {
+        const clampedX = Math.max(-maxDist, Math.min(maxDist, dx));
+        const clampedY = Math.max(-maxDist, Math.min(maxDist, dy));
+        rightKnob.style.transform = `translate(${clampedX}px, ${clampedY}px)`;
+        // map to yaw and pitch deltas; invert X so that dragging right turns right
+        mobileYawDelta = clampedX / maxDist;
+        mobilePitchDelta = clampedY / maxDist;
+      }
+
+      // left joystick events
+      leftBase.addEventListener('touchstart', (e) => {
+        const t = e.touches[0];
+        leftActive = true;
+        leftStartX = t.clientX;
+        leftStartY = t.clientY;
+      });
+      leftBase.addEventListener('touchmove', (e) => {
+        if (!leftActive) return;
+        e.preventDefault();
+        const t = e.touches[0];
+        const dx = t.clientX - leftStartX;
+        const dy = t.clientY - leftStartY;
+        handleLeftMove(dx, dy);
+      }, { passive: false });
+      leftBase.addEventListener('touchend', () => {
+        leftActive = false;
+        leftKnob.style.transform = 'translate(0px, 0px)';
+        mobileMoveX = 0;
+        mobileMoveZ = 0;
+      });
+
+      // right joystick events
+      rightBase.addEventListener('touchstart', (e) => {
+        const t = e.touches[0];
+        rightActive = true;
+        rightStartX = t.clientX;
+        rightStartY = t.clientY;
+      });
+      rightBase.addEventListener('touchmove', (e) => {
+        if (!rightActive) return;
+        e.preventDefault();
+        const t = e.touches[0];
+        const dx = t.clientX - rightStartX;
+        const dy = t.clientY - rightStartY;
+        handleRightMove(dx, dy);
+      }, { passive: false });
+      rightBase.addEventListener('touchend', () => {
+        rightActive = false;
+        rightKnob.style.transform = 'translate(0px, 0px)';
+        mobileYawDelta = 0;
+        mobilePitchDelta = 0;
+      });
+    }
+
+    function createCanvasTexture(title, text) {
+      // Create a canvas and draw text onto it
+      const canvas = document.createElement('canvas');
+      canvas.width = 400;
+      canvas.height = 350;
+      const ctx = canvas.getContext('2d');
+      // Background with semi‑transparent dark colour
+      ctx.fillStyle = 'rgba(227, 217, 179, 0.8)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Title
+      ctx.fillStyle = '#17191C';
+      ctx.font = 'bold 32px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(title, canvas.width / 2, 50);
+      // Body text
+      ctx.fillStyle = '#29334A';
+      ctx.font = '20px Arial';
+      ctx.textAlign = 'left';
+      // Split text into lines
+      const words = text.split(' ');
+      let line = '';
+      const lines = [];
+      const maxWidth = canvas.width - 60;
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+        if (testWidth > maxWidth && n > 0) {
+          lines.push(line);
+          line = words[n] + ' ';
+        } else {
+          line = testLine;
+        }
+      }
+      lines.push(line);
+      lines.forEach((l, i) => {
+        ctx.fillText(l.trim(), 30, 100 + i * 28);
+      });
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+      return texture;
+    }
+
+    function createInfoPanels(customPanels) {
+      const panelGeometry = new THREE.PlaneGeometry(4, 4.8);
+
+      customPanels.forEach(({ title, text, position, rotation }) => {
+        const texture = createCanvasTexture(title, text);
+        const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+        const mesh = new THREE.Mesh(panelGeometry, material);
+
+        // Posición y rotación personalizadas
+        mesh.position.set(position.x, position.y, position.z);
+        mesh.rotation.set(rotation.x, rotation.y, rotation.z);
+
+        scene.add(mesh);
+      });
+    }
+
+    function createVideoPanels(videoPanels) {
+      const panelGeometry = new THREE.PlaneGeometry(11.7, 5);
+
+      videoPanels.forEach(({ title, videoSrc, position, rotation }) => {
+        
+
+       
+
+        
+        // Crear elemento de video HTML
+        const video = document.createElement('video');
+        video.src = videoSrc;
+        video.crossOrigin = 'anonymous'; // útil si el video está en otro dominio
+        video.loop = true;
+        video.muted = true; // necesario para reproducción automática
+        video.playsInline = true;
+        video.autoplay = true;
+        video.play(); // inicia reproducción
+
+        // Crear textura desde el video
+        const texture = new THREE.VideoTexture(video);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.format = THREE.RGBAFormat;
+
+        // Crear el material y mesh
+        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+        const mesh = new THREE.Mesh(panelGeometry, material);
+
+        // Posicionar y rotar el panel
+        mesh.position.set(position.x, position.y, position.z);
+        mesh.rotation.set(rotation.x, rotation.y, rotation.z);
+
+        scene.add(mesh);
+      });
+    }
+
+    function onKeyDown(event) {
+      switch (event.code) {
+        case 'ArrowUp':
+        case 'KeyW':
+          moveForward = true;
+          break;
+        case 'ArrowLeft':
+        case 'KeyA':
+          moveLeft = true;
+          break;
+        case 'ArrowDown':
+        case 'KeyS':
+          moveBackward = true;
+          break;
+        case 'ArrowRight':
+        case 'KeyD':
+          moveRight = true;
+          break;
+      }
+    }
+    function onKeyUp(event) {
+      switch (event.code) {
+        case 'ArrowUp':
+        case 'KeyW':
+          moveForward = false;
+          break;
+        case 'ArrowLeft':
+        case 'KeyA':
+          moveLeft = false;
+          break;
+        case 'ArrowDown':
+        case 'KeyS':
+          moveBackward = false;
+          break;
+        case 'ArrowRight':
+        case 'KeyD':
+          moveRight = false;
+          break;
+      }
+    }
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    function animate() {
+      requestAnimationFrame(animate);
+      const time = performance.now();
+      const delta = (time - prevTime) / 1000;
+      if (!isMobile && controls && controls.isLocked === true) {
+        // Desktop pointer lock movement
+        direction.z = Number(moveForward) - Number(moveBackward);
+        direction.x = Number(moveRight) - Number(moveLeft);
+        direction.normalize();
+        const speed = 100.0;
+        if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
+        if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
+        controls.moveRight(-velocity.x * delta);
+        controls.moveForward(-velocity.z * delta);
+        // Decay velocity so the player stops when key released
+        velocity.x -= velocity.x * 10.0 * delta;
+        velocity.z -= velocity.z * 10.0 * delta;
+      } else if (isMobile) {
+        // Mobile movement and orientation
+        // Update camera orientation based on yaw/pitch deltas
+        const rotSpeed = 2.0; // radians per second
+        yaw -= mobileYawDelta * rotSpeed * delta;
+        pitch -= mobilePitchDelta * rotSpeed * delta;
+        // Clamp pitch to avoid flipping
+        const maxPitch = Math.PI / 2 - 0.1;
+        pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
+        camera.rotation.order = 'YXZ';
+        camera.rotation.y = yaw;
+        camera.rotation.x = pitch;
+        // Compute forward and right vectors from yaw
+        const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+        const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+        const speed = 5.0;
+        camera.position.addScaledVector(forward, mobileMoveZ * speed * delta);
+        camera.position.addScaledVector(right, mobileMoveX * speed * delta);
+        // Keep camera at constant height
+        camera.position.y = 1.6;
+      }
+      prevTime = time;
+      renderer.render(scene, camera);
+    }
+    // Initialize
+    init();
+  </script>
+  <!-- Notes for citations: this implementation follows the pattern described in the Three.js pointer lock example.  The article explains that PointerLockControls implements the browser Pointer Lock API, allowing first‑person control similar to 3D games【964747889971271†L132-L136】.  The example demonstrates how clicking an instruction overlay locks the pointer and hides the instructions【964747889971271†L232-L241】, and how keyboard events update forward/backward and left/right movement states【964747889971271†L248-L289】.  -->
+</body>
+</html>
