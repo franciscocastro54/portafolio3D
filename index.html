@@ -579,7 +579,7 @@ createVideoPanels([
         direction.z = Number(moveForward) - Number(moveBackward);
         direction.x = Number(moveRight) - Number(moveLeft);
         direction.normalize();
-        const speed = 100.0;
+        const speed = 60.0;
         if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
         if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
         controls.moveRight(-velocity.x * delta);
@@ -590,7 +590,7 @@ createVideoPanels([
       } else if (isMobile) {
         // Mobile movement and orientation
         // Update camera orientation based on yaw/pitch deltas
-        const rotSpeed = 2.0; // radians per second
+        const rotSpeed = 0.3; // radians per second
         yaw -= mobileYawDelta * rotSpeed * delta;
         pitch -= mobilePitchDelta * rotSpeed * delta;
         // Clamp pitch to avoid flipping
@@ -606,7 +606,7 @@ createVideoPanels([
         camera.position.addScaledVector(forward, mobileMoveZ * speed * delta);
         camera.position.addScaledVector(right, mobileMoveX * speed * delta);
         // Keep camera at constant height
-        camera.position.y = 1.6;
+        camera.position.y = 5;
       }
       prevTime = time;
       renderer.render(scene, camera);
